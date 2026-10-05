@@ -1640,28 +1640,52 @@ let paymongoConfig: PaymongoConfig = {
   webhookSecret: process.env.PAYMONGO_WEBHOOK_SECRET || '',
 };
 
-for (const f of PAYMONGO_FILES) {
+async function ensurePayMongoConfig() {
+  for (const f of PAYMONGO_FILES) {
+    try {
+      if (fs.existsSync(f)) {
+        const saved = JSON.parse(fs.readFileSync(f, 'utf-8'));
+        if (saved && typeof saved === 'object' && saved.secretKey) {
+          paymongoConfig = { ...paymongoConfig, ...saved };
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Load from Firestore fallback
   try {
-    if (fs.existsSync(f)) {
-      const saved = JSON.parse(fs.readFileSync(f, 'utf-8'));
-      if (saved && typeof saved === 'object') {
-        paymongoConfig = { ...paymongoConfig, ...saved };
-        break;
+    const fbConfigFile = path.join(__dirname, 'firebase-applet-config.json');
+    if (fs.existsSync(fbConfigFile)) {
+      const fbConfig = JSON.parse(fs.readFileSync(fbConfigFile, 'utf-8'));
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { initializeFirestore, doc, getDoc } = await import('firebase/firestore');
+      const app = getApps().length > 0 ? getApps()[0] : initializeApp(fbConfig);
+      const db = initializeFirestore(app, { experimentalForceLongPolling: true }, fbConfig.firestoreDatabaseId || undefined);
+      const snap = await getDoc(doc(db, 'settings', 'paymongo_config'));
+      if (snap.exists()) {
+        const data: any = snap.data();
+        if (data && data.secretKey) {
+          paymongoConfig = { ...paymongoConfig, ...data };
+          savePayMongoConfigToFile();
+        }
       }
     }
   } catch (e) {}
 }
 
+ensurePayMongoConfig();
+
 function savePayMongoConfigToFile() {
   for (const f of PAYMONGO_FILES) {
     try {
       fs.writeFileSync(f, JSON.stringify(paymongoConfig, null, 2), 'utf-8');
-      break;
     } catch (e) {}
   }
 }
 
-app.get('/api/admin/paymongo/config', (req, res) => {
+app.get('/api/admin/paymongo/config', async (req, res) => {
+  await ensurePayMongoConfig();
   res.json({
     success: true,
     config: {
@@ -1783,6 +1807,8 @@ app.post('/api/paymongo/create-checkout', async (req, res) => {
   const cleanPhone = phone || '09060489645';
   const refNo = `PM-${Math.floor(10000000 + Math.random() * 90000000)}`;
   const txId = `tx_pm_${Date.now()}`;
+
+  await ensurePayMongoConfig();
 
   // If real PayMongo keys configured
   if (paymongoConfig.isEnabled && paymongoConfig.secretKey) {

@@ -17,10 +17,18 @@ export default async function handler(req: any, res: any) {
     try {
       const fs = await import('fs');
       const path = await import('path');
-      const cfgPath = path.join(process.cwd(), 'paymongo_config.json');
-      if (fs.existsSync(cfgPath)) {
-        const parsed = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
-        liveSecretKey = parsed.secretKey || '';
+      const cfgPaths = [
+        '/tmp/paymongo_config.json',
+        path.join(process.cwd(), 'paymongo_config.json'),
+      ];
+      for (const cp of cfgPaths) {
+        if (fs.existsSync(cp)) {
+          const parsed = JSON.parse(fs.readFileSync(cp, 'utf-8'));
+          if (parsed?.secretKey) {
+            liveSecretKey = parsed.secretKey;
+            break;
+          }
+        }
       }
     } catch {}
   }

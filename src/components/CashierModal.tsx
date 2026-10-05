@@ -79,9 +79,8 @@ export const CashierModal: React.FC<CashierModalProps> = ({
       if (data && data.success && data.checkoutUrl) {
         setPaymongoCheckoutUrl(data.checkoutUrl);
         sounds.playCashout();
-        try {
-          window.open(data.checkoutUrl, '_blank');
-        } catch {}
+        // Diretso agad sa PayMongo Checkout page
+        window.location.href = data.checkoutUrl;
         return;
       } else if (!data) {
         // Fallback to local checkout simulation
@@ -90,9 +89,7 @@ export const CashierModal: React.FC<CashierModalProps> = ({
         const simUrl = `/paymongo-checkout.html?amount=${depositAmount}&phone=${depositPhone}&ref=${refNo}&tx=${txId}`;
         setPaymongoCheckoutUrl(simUrl);
         sounds.playCashout();
-        try {
-          window.open(simUrl, '_blank');
-        } catch {}
+        window.location.href = simUrl;
         return;
       } else {
         setErrorMsg(data.message || 'Hindi ma-load ang Payment checkout. Pakisubukang muli.');
