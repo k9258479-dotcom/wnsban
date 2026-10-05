@@ -1659,9 +1659,9 @@ async function ensurePayMongoConfig() {
     if (fs.existsSync(fbConfigFile)) {
       const fbConfig = JSON.parse(fs.readFileSync(fbConfigFile, 'utf-8'));
       const { initializeApp, getApps } = await import('firebase/app');
-      const { initializeFirestore, doc, getDoc } = await import('firebase/firestore');
+      const { getFirestore, doc, getDoc } = await import('firebase/firestore');
       const app = getApps().length > 0 ? getApps()[0] : initializeApp(fbConfig);
-      const db = initializeFirestore(app, { experimentalForceLongPolling: true }, fbConfig.firestoreDatabaseId || undefined);
+      const db = getFirestore(app, fbConfig.firestoreDatabaseId || undefined);
       const snap = await getDoc(doc(db, 'settings', 'paymongo_config'));
       if (snap.exists()) {
         const data: any = snap.data();
